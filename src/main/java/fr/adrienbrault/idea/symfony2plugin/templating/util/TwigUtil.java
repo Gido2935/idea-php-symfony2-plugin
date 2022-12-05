@@ -1090,6 +1090,16 @@ public class TwigUtil {
     }
 
     /**
+    * Get extension from file name or path
+    *
+    */
+    public static Optional<String> getExtensionByStringHandling(String filename) {
+        return Optional.ofNullable(filename)
+                .filter(f -> f.contains("."))
+                .map(f -> f.substring(filename.lastIndexOf(".") + 1));
+    }
+
+    /**
      * Find file in a twig path collection
      *
      * @param project current project
@@ -1099,6 +1109,10 @@ public class TwigUtil {
     @NotNull
     public static Collection<VirtualFile> getTemplateFiles(@NotNull Project project, @NotNull String templateName) {
         String normalizedTemplateName = normalizeTemplateName(templateName);
+
+        if (getExtensionByStringHandling(normalizedTemplateName).isEmpty()) {
+            normalizedTemplateName += ".htm";
+        }
 
         Collection<VirtualFile> virtualFiles = new HashSet<>();
         for (TwigPath twigPath : getTwigNamespaces(project)) {
@@ -2580,7 +2594,7 @@ public class TwigUtil {
 
         for (PhpClass allSubclass : allSubclasses) {
 
-            // we dont want to see test extension like "§"
+            // we dont want to see test extension like "??"
             if(allSubclass.getName().endsWith("Test") || allSubclass.getContainingFile().getVirtualFile().getNameWithoutExtension().endsWith("Test")) {
                 continue;
             }
