@@ -1093,12 +1093,24 @@ public class TwigUtil {
     * Get extension from file name or path
     *
     */
-    public static Optional<String> getExtensionByStringHandling(String filename) {
-        return Optional.ofNullable(filename)
-                .filter(f -> f.contains("."))
-                .map(f -> f.substring(filename.lastIndexOf(".") + 1));
+    public static String getExtensionFromString(String fileName) {
+        if (fileName.contains(".")) {
+            int lastDot = fileName.lastIndexOf('.');
+            return fileName.substring(lastDot + 1);
+        }
+        return "";
     }
 
+    /**
+     * Add ".htm" to the templateName if no extension is present
+     *
+     */
+    public static String addDefaultExtensionIfNone(String templateName) {
+        if (getExtensionFromString(templateName).equals("")) {
+            return templateName + ".htm";
+        }
+        return templateName;
+    }
     /**
      * Find file in a twig path collection
      *
@@ -1109,10 +1121,6 @@ public class TwigUtil {
     @NotNull
     public static Collection<VirtualFile> getTemplateFiles(@NotNull Project project, @NotNull String templateName) {
         String normalizedTemplateName = normalizeTemplateName(templateName);
-
-        if (getExtensionByStringHandling(normalizedTemplateName).isEmpty()) {
-            normalizedTemplateName += ".htm";
-        }
 
         Collection<VirtualFile> virtualFiles = new HashSet<>();
         for (TwigPath twigPath : getTwigNamespaces(project)) {
@@ -1137,7 +1145,7 @@ public class TwigUtil {
                 // :Foo:base.html.twig
                 if(normalizedTemplateName.length() > 1 && twigPath.getNamespaceType() == NamespaceType.BUNDLE && twigPath.isGlobalNamespace()) {
                     String templatePath = StringUtils.strip(normalizedTemplateName.replace(":", "/"), "/");
-                    addFileInsideTwigPath(project, templatePath, virtualFiles, twigPath);
+                    addFileInsideTwigPath(project, addDefaultExtensionIfNone(templatePath), virtualFiles, twigPath);
                 }
             } else {
                 // FooBundle::base.html.twig
@@ -1148,7 +1156,7 @@ public class TwigUtil {
                         String templateNs = normalizedTemplateName.substring(0, i);
                         if(twigPath.getNamespace().equals(templateNs)) {
                             String templatePath = StringUtils.strip(normalizedTemplateName.substring(i + 1).replace(":", "/").replace("//", "/"), "/");
-                            addFileInsideTwigPath(project, templatePath, virtualFiles, twigPath);
+                            addFileInsideTwigPath(project, addDefaultExtensionIfNone(templatePath), virtualFiles, twigPath);
                         }
 
                     }
@@ -1356,6 +1364,19 @@ public class TwigUtil {
             .collect(Collectors.toList());
     }
 
+    /**
+     * Removes files extension"
+     *
+     */
+    public static String removeFileExtension(String filename, boolean removeAllExtensions) {
+        if (filename == null || filename.isEmpty()) {
+            return filename;
+        }
+
+        String extPattern = "(?<!^)[.]" + (removeAllExtensions ? ".*" : "[^.]*$");
+        return filename.replaceAll(extPattern, "");
+    }
+
     @Nullable
     static String getTemplateNameForTwigPath(@NotNull Project project, @NotNull TwigPath twigPath, @NotNull VirtualFile virtualFile) {
         VirtualFile directory = twigPath.getDirectory(project);
@@ -1384,7 +1405,11 @@ public class TwigUtil {
 
         String templateFinalName;
         if(twigPath.getNamespaceType() == NamespaceType.BUNDLE) {
-            templateFinalName = namespace + ":" + templateDirectory + ":" + templateFile;
+            if (getExtensionFromString(templateFile).equals("htm")) {
+                templateFinalName = namespace + "::" + templateDirectory + "/" + removeFileExtension(templateFile, true);
+            } else {
+                templateFinalName = namespace + ":" + templateDirectory + ":" + templateFile;
+            }
         } else {
             templateFinalName = namespace + "/" + templateDirectory + "/" + templateFile;
 
